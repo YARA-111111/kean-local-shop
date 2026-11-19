@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kean.yelp.mapper.ReviewMapper">
+
+    <!-- 获取商家评分分布 -->
+    <select id="getRatingDistribution" resultType="map">
+        SELECT 
+            FLOOR(stars) as rating,
+            COUNT(*) as count
+        FROM reviews
+        WHERE business_id = #{businessId}
+        GROUP BY FLOOR(stars)
+        ORDER BY rating
+    </select>
+
+    <!-- 获取商家评分趋势 (按月统计) -->
+    <select id="getRatingTrendByMonth" resultType="map">
+        SELECT 
+            DATE_FORMAT(review_date, '%Y-%m') as period,
+            AVG(stars) as avg_rating,
+            COUNT(*) as review_count
+        FROM reviews
+        WHERE business_id = #{businessId}
+        GROUP BY DATE_FORMAT(review_date, '%Y-%m')
+        ORDER BY period
+    </select>
+
+    <!-- 分页获取商家评论 -->
+    <select id="findByBusinessId" resultType="com.kean.yelp.entity.Review">
+        SELECT 
+            review_id, user_id, business_id, stars, useful, funny, cool, text, review_date, created_at
+        FROM reviews
+        WHERE business_id = #{businessId}
+        ORDER BY review_date DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 统计商家评论总数 -->
+    <select id="countByBusinessId" resultType="long">
+        SELECT COUNT(*) FROM reviews WHERE business_id = #{businessId}
+    </select>
+
+    <!-- 分页获取所有评论 -->
+    <select id="findAllPaged" resultType="com.kean.yelp.entity.Review">
+        SELECT 
+            review_id, user_id, business_id, stars, useful, funny, cool, text, review_date, created_at
+        FROM reviews
+        ORDER BY review_date DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 统计所有评论总数 -->
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM reviews
+    </select>
+
+</mapper>

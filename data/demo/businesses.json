@@ -1,0 +1,23 @@
+[
+  {
+    "business_id": "demo-cafe",
+    "name": "Fictional Campus Cafe",
+    "address": "1 Example Street",
+    "city": "Demo City",
+    "state": "NJ",
+    "postal_code": "00000",
+    "latitude": 40.67,
+    "longitude": -74.23,
+    "stars": 4.5,
+    "review_count": 0,
+    "is_open": 1,
+    "categories": "Cafe, Restaurants",
+    "attributes": {
+      "RestaurantsPriceRange2": "1",
+      "GoodForKids": "True"
+    },
+    "hours": {
+      "Monday": "9:00-17:00"
+    }
+  }
+]

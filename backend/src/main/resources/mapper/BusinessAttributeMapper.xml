@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kean.yelp.mapper.BusinessAttributeMapper">
+
+    <!-- 获取商家的所有属性 -->
+    <select id="findByBusinessId" resultType="com.kean.yelp.entity.BusinessAttribute">
+        SELECT id, business_id, attribute_name, attribute_value
+        FROM business_attributes
+        WHERE business_id = #{businessId}
+    </select>
+
+    <!-- 获取商家的指定属性值 -->
+    <select id="getAttributeValue" resultType="string">
+        SELECT attribute_value
+        FROM business_attributes
+        WHERE business_id = #{businessId} AND attribute_name = #{attributeName}
+        LIMIT 1
+    </select>
+
+    <!-- 获取商家价格区间 -->
+    <select id="getPriceRange" resultType="integer">
+        SELECT CAST(attribute_value AS UNSIGNED)
+        FROM business_attributes
+        WHERE business_id = #{businessId} AND attribute_name = 'RestaurantsPriceRange2'
+        LIMIT 1
+    </select>
+
+</mapper>

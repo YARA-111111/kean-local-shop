@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kean.yelp.mapper.BusinessHourMapper">
+
+    <!-- 获取商家的营业时间 -->
+    <select id="findByBusinessId" resultType="com.kean.yelp.entity.BusinessHour">
+        SELECT id, business_id, day_of_week, open_time, close_time, is_closed
+        FROM business_hours
+        WHERE business_id = #{businessId}
+        ORDER BY FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')
+    </select>
+
+</mapper>

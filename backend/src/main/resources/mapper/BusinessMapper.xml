@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kean.yelp.mapper.BusinessMapper">
+
+    <!-- 商家列表VO结果映射 -->
+    <resultMap id="BusinessListVOMap" type="com.kean.yelp.dto.BusinessListVO">
+        <result column="business_id" property="businessId"/>
+        <result column="name" property="name"/>
+        <result column="address" property="address"/>
+        <result column="city" property="city"/>
+        <result column="state" property="state"/>
+        <result column="postal_code" property="postalCode"/>
+        <result column="stars" property="stars"/>
+        <result column="review_count" property="reviewCount"/>
+        <result column="is_open" property="isOpen"/>
+        <result column="categories" property="categories"/>
+        <result column="price_range" property="priceRange"/>
+        <result column="has_delivery" property="hasDelivery"/>
+        <result column="has_take_out" property="hasTakeOut"/>
+        <result column="has_outdoor_seating" property="hasOutdoorSeating"/>
+        <result column="good_for_kids" property="goodForKids"/>
+        <result column="popularity_score" property="popularityScore"/>
+    </resultMap>
+
+    <!-- 基础查询列 -->
+    <sql id="baseColumns">
+        b.business_id, b.name, b.address, b.city, b.state, b.postal_code,
+        b.stars, b.review_count, b.is_open, b.categories
+    </sql>
+
+    <!-- 高级条件查询商家列表 -->
+    <select id="queryBusinessList" resultMap="BusinessListVOMap">
+        SELECT 
+            <include refid="baseColumns"/>,
+            CAST(price.attribute_value AS UNSIGNED) as price_range,
+            CASE WHEN delivery.attribute_value = 'True' THEN true ELSE false END as has_delivery,
+            CASE WHEN takeout.attribute_value = 'True' THEN true ELSE false END as has_take_out,
+            CASE WHEN outdoor.attribute_value = 'True' THEN true ELSE false END as has_outdoor_seating,
+            CASE WHEN kids.attribute_value = 'True' THEN true ELSE false END as good_for_kids,
+            (b.stars * 0.6 + LEAST(b.review_count / 10.0, 4) * 0.4) as popularity_score
+        FROM businesses b
+        LEFT JOIN business_attributes price ON b.business_id = price.business_id AND price.attribute_name = 'RestaurantsPriceRange2'
+        LEFT JOIN business_attributes delivery ON b.business_id = delivery.business_id AND delivery.attribute_name = 'RestaurantsDelivery'
+        LEFT JOIN business_attributes takeout ON b.business_id = takeout.business_id AND takeout.attribute_name = 'RestaurantsTakeOut'
+        LEFT JOIN business_attributes outdoor ON b.business_id = outdoor.business_id AND outdoor.attribute_name = 'OutdoorSeating'
+        LEFT JOIN business_attributes kids ON b.business_id = kids.business_id AND kids.attribute_name = 'GoodForKids'
+        <where>
+            <if test="query.keyword != null and query.keyword != ''">
+                AND (b.name LIKE CONCAT('%', #{query.keyword}, '%') 
+                     OR b.categories LIKE CONCAT('%', #{query.keyword}, '%')
+                     OR b.address LIKE CONCAT('%', #{query.keyword}, '%'))
+            </if>
+            <if test="query.city != null and query.city != ''">
+                AND b.city = #{query.city}
+            </if>
+            <if test="query.state != null and query.state != ''">
+                AND b.state = #{query.state}
+            </if>
+            <if test="query.category != null and query.category != ''">
+                AND b.categories LIKE CONCAT('%', #{query.category}, '%')
+            </if>
+            <if test="query.priceRange != null">
+                AND price.attribute_value = #{query.priceRange}
+            </if>
+            <if test="query.minStars != null">
+                AND b.stars &gt;= #{query.minStars}
+            </if>
+            <if test="query.maxStars != null">
+                AND b.stars &lt;= #{query.maxStars}
+            </if>
+            <if test="query.minReviewCount != null">
+                AND b.review_count &gt;= #{query.minReviewCount}
+            </if>
+            <if test="query.isOpen != null">
+                AND b.is_open = #{query.isOpen}
+            </if>
+            <if test="query.hasDelivery != null and query.hasDelivery">
+                AND delivery.attribute_value = 'True'
+            </if>
+            <if test="query.hasTakeOut != null and query.hasTakeOut">
+                AND takeout.attribute_value = 'True'
+            </if>
+            <if test="query.hasReservation != null and query.hasReservation">
+                AND EXISTS (SELECT 1 FROM business_attributes ba WHERE ba.business_id = b.business_id 
+                            AND ba.attribute_name = 'RestaurantsReservations' AND ba.attribute_value = 'True')
+            </if>
+            <if test="query.hasOutdoorSeating != null and query.hasOutdoorSeating">
+                AND outdoor.attribute_value = 'True'
+            </if>
+            <if test="query.goodForKids != null and query.goodForKids">
+                AND kids.attribute_value = 'True'
+            </if>
+            <if test="query.wheelchairAccessible != null and query.wheelchairAccessible">
+                AND EXISTS (SELECT 1 FROM business_attributes ba WHERE ba.business_id = b.business_id 
+                            AND ba.attribute_name = 'WheelchairAccessible' AND ba.attribute_value = 'True')
+            </if>
+            <if test="query.hasWifi != null and query.hasWifi">
+                AND EXISTS (SELECT 1 FROM business_attributes ba WHERE ba.business_id = b.business_id 
+                            AND ba.attribute_name = 'WiFi' AND ba.attribute_value LIKE '%free%')
+            </if>
+        </where>
+        <choose>
+            <when test="query.sortBy == 'stars'">
+                ORDER BY b.stars ${query.sortDir}
+            </when>
+            <when test="query.sortBy == 'reviewCount'">
+                ORDER BY b.review_count ${query.sortDir}
+            </when>
+            <when test="query.sortBy == 'popularity'">
+                ORDER BY popularity_score ${query.sortDir}
+            </when>
+            <when test="query.sortBy == 'priceRange'">
+                ORDER BY price_range ${query.sortDir}
+            </when>
+            <otherwise>
+                ORDER BY b.stars DESC
+            </otherwise>
+        </choose>
+        LIMIT #{query.size} OFFSET #{query.offset}
+    </select>
+
+    <!-- 统计高级查询总数 -->
+    <select id="countBusinessList" resultType="long">
+        SELECT COUNT(DISTINCT b.business_id)
+        FROM businesses b
+        LEFT JOIN business_attributes price ON b.business_id = price.business_id AND price.attribute_name = 'RestaurantsPriceRange2'
+        LEFT JOIN business_attributes delivery ON b.business_id = delivery.business_id AND delivery.attribute_name = 'RestaurantsDelivery'
+        LEFT JOIN business_attributes takeout ON b.business_id = takeout.business_id AND takeout.attribute_name = 'RestaurantsTakeOut'
+        LEFT JOIN business_attributes outdoor ON b.business_id = outdoor.business_id AND outdoor.attribute_name = 'OutdoorSeating'
+        LEFT JOIN business_attributes kids ON b.business_id = kids.business_id AND kids.attribute_name = 'GoodForKids'
+        <where>
+            <if test="query.keyword != null and query.keyword != ''">
+                AND (b.name LIKE CONCAT('%', #{query.keyword}, '%') 
+                     OR b.categories LIKE CONCAT('%', #{query.keyword}, '%')
+                     OR b.address LIKE CONCAT('%', #{query.keyword}, '%'))
+            </if>
+            <if test="query.city != null and query.city != ''">
+                AND b.city = #{query.city}
+            </if>
+            <if test="query.state != null and query.state != ''">
+                AND b.state = #{query.state}
+            </if>
+            <if test="query.category != null and query.category != ''">
+                AND b.categories LIKE CONCAT('%', #{query.category}, '%')
+            </if>
+            <if test="query.priceRange != null">
+                AND price.attribute_value = #{query.priceRange}
+            </if>
+            <if test="query.minStars != null">
+                AND b.stars &gt;= #{query.minStars}
+            </if>
+            <if test="query.maxStars != null">
+                AND b.stars &lt;= #{query.maxStars}
+            </if>
+            <if test="query.minReviewCount != null">
+                AND b.review_count &gt;= #{query.minReviewCount}
+            </if>
+            <if test="query.isOpen != null">
+                AND b.is_open = #{query.isOpen}
+            </if>
+            <if test="query.hasDelivery != null and query.hasDelivery">
+                AND delivery.attribute_value = 'True'
+            </if>
+            <if test="query.hasTakeOut != null and query.hasTakeOut">
+                AND takeout.attribute_value = 'True'
+            </if>
+            <if test="query.hasReservation != null and query.hasReservation">
+                AND EXISTS (SELECT 1 FROM business_attributes ba WHERE ba.business_id = b.business_id 
+                            AND ba.attribute_name = 'RestaurantsReservations' AND ba.attribute_value = 'True')
+            </if>
+            <if test="query.hasOutdoorSeating != null and query.hasOutdoorSeating">
+                AND outdoor.attribute_value = 'True'
+            </if>
+            <if test="query.goodForKids != null and query.goodForKids">
+                AND kids.attribute_value = 'True'
+            </if>
+            <if test="query.wheelchairAccessible != null and query.wheelchairAccessible">
+                AND EXISTS (SELECT 1 FROM business_attributes ba WHERE ba.business_id = b.business_id 
+                            AND ba.attribute_name = 'WheelchairAccessible' AND ba.attribute_value = 'True')
+            </if>
+            <if test="query.hasWifi != null and query.hasWifi">
+                AND EXISTS (SELECT 1 FROM business_attributes ba WHERE ba.business_id = b.business_id 
+                            AND ba.attribute_name = 'WiFi' AND ba.attribute_value LIKE '%free%')
+            </if>
+        </where>
+    </select>
+
+    <!-- 获取热门商家 -->
+    <select id="findPopularBusinesses" resultMap="BusinessListVOMap">
+        SELECT 
+            <include refid="baseColumns"/>,
+            CAST(price.attribute_value AS UNSIGNED) as price_range,
+            CASE WHEN delivery.attribute_value = 'True' THEN true ELSE false END as has_delivery,
+            CASE WHEN takeout.attribute_value = 'True' THEN true ELSE false END as has_take_out,
+            CASE WHEN outdoor.attribute_value = 'True' THEN true ELSE false END as has_outdoor_seating,
+            CASE WHEN kids.attribute_value = 'True' THEN true ELSE false END as good_for_kids,
+            (b.stars * 0.6 + LEAST(b.review_count / 10.0, 4) * 0.4) as popularity_score
+        FROM businesses b
+        LEFT JOIN business_attributes price ON b.business_id = price.business_id AND price.attribute_name = 'RestaurantsPriceRange2'
+        LEFT JOIN business_attributes delivery ON b.business_id = delivery.business_id AND delivery.attribute_name = 'RestaurantsDelivery'
+        LEFT JOIN business_attributes takeout ON b.business_id = takeout.business_id AND takeout.attribute_name = 'RestaurantsTakeOut'
+        LEFT JOIN business_attributes outdoor ON b.business_id = outdoor.business_id AND outdoor.attribute_name = 'OutdoorSeating'
+        LEFT JOIN business_attributes kids ON b.business_id = kids.business_id AND kids.attribute_name = 'GoodForKids'
+        WHERE b.is_open = true
+        ORDER BY popularity_score DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 获取高评分商家 -->
+    <select id="findTopRatedBusinesses" resultMap="BusinessListVOMap">
+        SELECT 
+            <include refid="baseColumns"/>,
+            CAST(price.attribute_value AS UNSIGNED) as price_range,
+            null as has_delivery, null as has_take_out, null as has_outdoor_seating, null as good_for_kids,
+            (b.stars * 0.6 + LEAST(b.review_count / 10.0, 4) * 0.4) as popularity_score
+        FROM businesses b
+        LEFT JOIN business_attributes price ON b.business_id = price.business_id AND price.attribute_name = 'RestaurantsPriceRange2'
+        WHERE b.stars &gt;= #{minStars} AND b.is_open = true
+        ORDER BY b.stars DESC, b.review_count DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 性价比商家查询 -->
+    <select id="findValueForMoneyBusinesses" resultMap="BusinessListVOMap">
+        SELECT 
+            <include refid="baseColumns"/>,
+            CAST(price.attribute_value AS UNSIGNED) as price_range,
+            CASE WHEN delivery.attribute_value = 'True' THEN true ELSE false END as has_delivery,
+            CASE WHEN takeout.attribute_value = 'True' THEN true ELSE false END as has_take_out,
+            null as has_outdoor_seating, null as good_for_kids,
+            (b.stars / CAST(price.attribute_value AS DECIMAL(2,1))) as popularity_score
+        FROM businesses b
+        INNER JOIN business_attributes price ON b.business_id = price.business_id 
+            AND price.attribute_name = 'RestaurantsPriceRange2'
+            AND price.attribute_value IN ('1', '2')
+        LEFT JOIN business_attributes delivery ON b.business_id = delivery.business_id AND delivery.attribute_name = 'RestaurantsDelivery'
+        LEFT JOIN business_attributes takeout ON b.business_id = takeout.business_id AND takeout.attribute_name = 'RestaurantsTakeOut'
+        WHERE b.stars &gt;= 4.0 AND b.is_open = true
+        ORDER BY (b.stars / CAST(price.attribute_value AS DECIMAL(2,1))) DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 家庭友好型商家查询 -->
+    <select id="findFamilyFriendlyBusinesses" resultMap="BusinessListVOMap">
+        SELECT 
+            <include refid="baseColumns"/>,
+            CAST(price.attribute_value AS UNSIGNED) as price_range,
+            null as has_delivery, null as has_take_out, null as has_outdoor_seating,
+            true as good_for_kids,
+            (b.stars * 0.6 + LEAST(b.review_count / 10.0, 4) * 0.4) as popularity_score
+        FROM businesses b
+        INNER JOIN business_attributes kids ON b.business_id = kids.business_id 
+            AND kids.attribute_name = 'GoodForKids' AND kids.attribute_value = 'True'
+        LEFT JOIN business_attributes price ON b.business_id = price.business_id AND price.attribute_name = 'RestaurantsPriceRange2'
+        WHERE b.is_open = true
+        ORDER BY b.stars DESC, b.review_count DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 高端餐厅查询 -->
+    <select id="findHighEndBusinesses" resultMap="BusinessListVOMap">
+        SELECT 
+            <include refid="baseColumns"/>,
+            CAST(price.attribute_value AS UNSIGNED) as price_range,
+            null as has_delivery, null as has_take_out, null as has_outdoor_seating, null as good_for_kids,
+            (b.stars * 0.6 + LEAST(b.review_count / 10.0, 4) * 0.4) as popularity_score
+        FROM businesses b
+        INNER JOIN business_attributes price ON b.business_id = price.business_id 
+            AND price.attribute_name = 'RestaurantsPriceRange2'
+            AND price.attribute_value IN ('3', '4')
+        WHERE b.stars &gt;= 4.0 AND b.is_open = true
+        ORDER BY b.stars DESC, price.attribute_value DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 根据类别查找商家 -->
+    <select id="findByCategory" resultMap="BusinessListVOMap">
+        SELECT 
+            <include refid="baseColumns"/>,
+            CAST(price.attribute_value AS UNSIGNED) as price_range,
+            null as has_delivery, null as has_take_out, null as has_outdoor_seating, null as good_for_kids,
+            (b.stars * 0.6 + LEAST(b.review_count / 10.0, 4) * 0.4) as popularity_score
+        FROM businesses b
+        LEFT JOIN business_attributes price ON b.business_id = price.business_id AND price.attribute_name = 'RestaurantsPriceRange2'
+        WHERE b.categories LIKE CONCAT('%', #{category}, '%')
+        ORDER BY b.stars DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 附近商家查询 -->
+    <select id="findNearbyBusinesses" resultMap="BusinessListVOMap">
+        SELECT 
+            <include refid="baseColumns"/>,
+            CAST(price.attribute_value AS UNSIGNED) as price_range,
+            null as has_delivery, null as has_take_out, null as has_outdoor_seating, null as good_for_kids,
+            (b.stars * 0.6 + LEAST(b.review_count / 10.0, 4) * 0.4) as popularity_score,
+            (6371 * acos(cos(radians(#{lat})) * cos(radians(b.latitude)) * cos(radians(b.longitude) - radians(#{lng})) + sin(radians(#{lat})) * sin(radians(b.latitude)))) AS distance
+        FROM businesses b
+        LEFT JOIN business_attributes price ON b.business_id = price.business_id AND price.attribute_name = 'RestaurantsPriceRange2'
+        HAVING distance &lt;= #{radiusKm}
+        ORDER BY distance
+        LIMIT #{limit}
+    </select>
+
+</mapper>

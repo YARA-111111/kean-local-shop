@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.kean.yelp.mapper.TipMapper">
+
+    <!-- 分页获取商家提示 -->
+    <select id="findByBusinessId" resultType="com.kean.yelp.entity.Tip">
+        SELECT id, user_id, business_id, text, tip_date, compliment_count, created_at
+        FROM tips
+        WHERE business_id = #{businessId}
+        ORDER BY tip_date DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 统计商家提示总数 -->
+    <select id="countByBusinessId" resultType="long">
+        SELECT COUNT(*) FROM tips WHERE business_id = #{businessId}
+    </select>
+
+    <!-- 分页获取所有提示 -->
+    <select id="findAllPaged" resultType="com.kean.yelp.entity.Tip">
+        SELECT id, user_id, business_id, text, tip_date, compliment_count, created_at
+        FROM tips
+        ORDER BY tip_date DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 统计所有提示总数 -->
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM tips
+    </select>
+
+</mapper>
