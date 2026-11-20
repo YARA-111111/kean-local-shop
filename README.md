@@ -1,27 +1,101 @@
 # Kean Local Shop Finder
 
-Vue 3、Spring Boot、MySQL 8 课程项目：基于评分、价格和属性规则筛选店铺，包含分页、详情和评分趋势；不宣称机器学习个性化推荐。
+A team coursework project designed to help Kean University exchange students explore local businesses by rating, price, and business attributes.
 
-肖雅薇负责 Yelp 数据筛选、核验与分类，协助功能调试和数据展示。前后端整体为团队成果，见 CONTRIBUTORS.md。
+The application uses Vue 3, Spring Boot, and MySQL 8. Recommendations are based on filtering rules rather than a trained personalization model.
 
-## 环境与启动（PowerShell）
-需要 JDK 17、Maven 3.9、Node.js 22、Python 3.10+、MySQL 8。使用新建的专用数据库，不连接重要业务数据库。
+## Features
 
-1. 在 MySQL 客户端创建 `yelp_recommendation` 数据库及专用账号，在该数据库运行 `database/schema.sql`。
-2. 在启动后端及导入数据的终端设置 `$env:DB_USER="你的专用账号"` 和 `$env:DB_PASSWORD="你的密码"`。不要将密码提交到 Git。默认本机 3306；后端可用 DB_URL 覆盖连接地址，导入器使用 DB_HOST、DB_PORT、DB_NAME。
-3. `python -m pip install -r scripts/requirements.txt`
-4. `python scripts/import_data.py --data-dir data/demo`
-5. 后端：`cd backend`，执行 `mvn clean package`，再 `mvn spring-boot:run`。
-6. 新终端进入 frontend，执行 `npm ci`、`npm run dev`，打开终端显示的地址。
+- Combined business filters, pagination, and business details.
+- Value-for-money, family-friendly, and high-end query presets.
+- Rating distributions and monthly rating trends.
+- Python scripts for geographic filtering, business-ID filtering, and database import.
+- Synthetic demonstration data, with no real Yelp records included.
 
-演示店铺完全虚构；reviews/tips 为空，评论列表及趋势可以为空，这是预期行为。导入器不清空表，失败返回非零；原有分批提交行为保留，失败前可能已写入部分记录，建议只在专用演示库使用。
+## My contribution
 
-## 数据处理
-`python scripts/filter_data.py INPUT OUTPUT --bounds 40.665 40.690 -74.255 -74.215`
+Yawei Xiao ([YARA-111111](https://github.com/YARA-111111)) was responsible for filtering, validating, and categorizing Yelp business data, and assisted with feature debugging and data presentation. The frontend and backend are team contributions.
 
-也可使用 `--business-ids ids.txt` 按商户ID筛选评论。输入兼容 JSON 数组与逐行 JSON，输出为逐行 JSON；拒绝覆盖已存在输出。数组格式需要读入内存，处理大型原始数据优先使用逐行 JSON。
+## Requirements
 
-导入目录使用 businesses.json、reviews.json、tips.json 三个文件名，均支持数组或逐行 JSON。自行取得且有权使用的数据放在被 Git 忽略的 data/private/。本仓库不包含真实 Yelp 数据、评论、用户记录或原数据库导出；Yelp 数据受其官方协议约束：https://www.yelp.com/dataset 。
+JDK 17, Maven 3.9, Node.js 22, Python 3.10 or later, and MySQL 8.
 
-## 发布范围
-这是本地教学演示，尚无登录鉴权，不应直接部署为公网生产服务。原报告包含未核对的结论，因此不随发布版本提供。许可证与协作者名单需团队确认后决定。
+## Local setup
+
+### 1. Prepare a dedicated database
+
+Create a new database named `yelp_recommendation` and a dedicated MySQL user. Run `database/schema.sql` in that database. The schema contains no real records or destructive DROP statements.
+
+### 2. Configure credentials
+
+In each PowerShell terminal used for the backend or importer:
+
+```powershell
+$env:DB_USER = "your_database_user"
+$env:DB_PASSWORD = "your_database_password"
+```
+
+These are placeholders; use your local credentials and do not commit them.
+
+The default connection is localhost on port 3306. Override the backend connection with `DB_URL`. The Python importer supports `DB_HOST`, `DB_PORT`, and `DB_NAME`.
+
+### 3. Import the synthetic example
+
+From the repository root:
+
+```shell
+python -m pip install -r scripts/requirements.txt
+python scripts/import_data.py --data-dir data/demo
+```
+
+The demo business is fictional. Reviews and tips are empty, so empty review lists and trend charts are expected.
+
+### 4. Start the backend
+
+```shell
+cd backend
+mvn clean package
+mvn spring-boot:run
+```
+
+### 5. Start the frontend
+
+In a separate terminal, from the repository root:
+
+```shell
+cd frontend
+npm ci
+npm run dev
+```
+
+Open the address printed by Vite.
+
+## Data processing
+
+Filter businesses by geographic bounds:
+
+```shell
+python scripts/filter_data.py INPUT OUTPUT --bounds 40.665 40.690 -74.255 -74.215
+```
+
+Alternatively, use `--business-ids ids.txt`, with one business ID per line, to filter associated records.
+
+The filter accepts JSON arrays and newline-delimited JSON, produces newline-delimited JSON, and refuses to overwrite an existing output file. JSON arrays are loaded into memory; prefer newline-delimited JSON for large inputs.
+
+The importer expects `businesses.json`, `reviews.json`, and `tips.json`; each supports either input format. It does not clear existing tables. Imports commit in batches, so a failure can leave previously committed records. Use a dedicated demonstration database.
+
+Keep independently obtained data that you are authorized to use under the ignored `data/private/` directory. This repository excludes real Yelp data, reviews, user records, and original database exports. Consult the [official Yelp dataset terms](https://www.yelp.com/dataset) before obtaining or using their data.
+
+## Validation
+
+```shell
+python scripts/test_data.py
+```
+
+Backend packaging, frontend production build, and JSON/JSONL filtering tests have passed. Full database integration testing has not been completed.
+
+## Scope and attribution
+
+This is a local educational demonstration without authentication, not a production-ready public service. Original reports with unverified claims are not included.
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md). The team has not yet selected an open-source license.
